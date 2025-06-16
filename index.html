@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>TikTok Clone by Tống Trần Kiên</title>
-        <link rel="icon" type="image/x-icon" href="/daohuyenmy/favicon.ico" />
+        <link rel="icon" type="image/x-icon" href="/daohuyenmy-update/favicon.ico" />
         <style>
             body {
                 margin: 0;
@@ -149,7 +149,7 @@
 
         <script>
             // Định nghĩa BASE URL
-            const REPOSITORY_ROOT = "/daohuyenmy/";
+            const REPOSITORY_ROOT = "/daohuyenmy-update/";
             const VIDEOS_JSON_URL = `${REPOSITORY_ROOT}videos.json`;
             const CACHE_NAME = "tiktok-clone-v1";
 
@@ -158,11 +158,13 @@
             let isReloading = false;
             let isFirstLoad = true;
             let observer = null;
-            let hasInteracted = false;
+            let hasInteracted = localStorage.getItem("hasInteracted") === "true";
+
             const CACHE_KEY = "videoUrls";
             const CACHE_EXPIRY_KEY = "videoUrlsExpiry";
-            const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
+            const CACHE_DURATION = 30 * 60 * 1000;
             const FIRST_VISIT_KEY = "firstVisit";
+            const INTERACTED_KEY = "hasInteracted";
 
             // Kiểm tra và reload lần đầu truy cập
             window.addEventListener("load", () => {
@@ -290,6 +292,7 @@
                 localStorage.removeItem(CACHE_KEY);
                 localStorage.removeItem(CACHE_EXPIRY_KEY);
                 localStorage.removeItem(FIRST_VISIT_KEY);
+                localStorage.removeItem(INTERACTED_KEY);
                 window.location.reload();
             }
 
@@ -307,6 +310,7 @@
                 if (!hasInteracted) {
                     const enableAudio = () => {
                         hasInteracted = true;
+                        localStorage.setItem(INTERACTED_KEY, "true");
                         videos.forEach((video) => {
                             if (video.muted) {
                                 video.muted = false;
