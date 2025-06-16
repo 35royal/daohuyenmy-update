@@ -3,8 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>TikTok Clone by Tống Trần Kiên</title>
-        <link rel="icon" type="image/x-icon" href="favicon.ico" />
+        <title>Đào Huyền My - update</title>
+        <link rel="icon" type="image/x-icon" href="/daohuyenmy-update/favicon.ico" />
         <style>
             body {
                 margin: 0;
@@ -148,15 +148,9 @@
         <button class="refresh-btn" onclick="clearCacheAndReload()">🔄 Reload Video 🔄</button>
 
         <script>
-            // Định nghĩa BASE URL
-            const GITHUB_PAGES_BASE = "https://tongtrankien1605.github.io";
-            const REPOSITORY_ROOT = "/daohuyenmy/";
-            const BASE_URL = GITHUB_PAGES_BASE + REPOSITORY_ROOT;
-
-            const RAW_GITHUB_BASE = "https://raw.githubusercontent.com/tongtrankien1605";
-            const RAW_REPOSITORY_ROOT = "/daohuyenmy/main/";
-            const RAW_BASE_URL = RAW_GITHUB_BASE + RAW_REPOSITORY_ROOT;
-
+            // Định nghĩa đường dẫn tương đối
+            const REPOSITORY_ROOT = "/daohuyenmy-update/";
+            const VIDEOS_JSON_URL = `${REPOSITORY_ROOT}videos.json`;
             const CACHE_NAME = "tiktok-clone-v1";
 
             let videoUrls = [];
@@ -167,6 +161,18 @@
             const CACHE_KEY = "videoUrls";
             const CACHE_EXPIRY_KEY = "videoUrlsExpiry";
             const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
+            const FIRST_VISIT_KEY = "firstVisit";
+
+            // Kiểm tra lần truy cập đầu tiên
+            window.addEventListener("load", () => {
+                const isFirstVisit = localStorage.getItem(FIRST_VISIT_KEY);
+                if (!isFirstVisit) {
+                    localStorage.setItem(FIRST_VISIT_KEY, "true");
+                    window.location.reload();
+                } else {
+                    loadVideos();
+                }
+            });
 
             function isValidVideoUrl(url) {
                 return /\.(mp4|webm|ogg)$/i.test(url);
@@ -181,6 +187,14 @@
                 if (isReloading) return;
                 isReloading = true;
                 const container = document.getElementById("videoContainer");
+
+                // Kiểm tra kết nối mạng
+                if (!navigator.onLine) {
+                    container.innerHTML = '<p class="error-message">Không có kết nối mạng. Vui lòng kiểm tra và thử lại.</p>';
+                    isReloading = false;
+                    return;
+                }
+
                 let shouldUseCache = false;
 
                 if (!isReload && isCacheValid()) {
@@ -188,7 +202,7 @@
                         const cachedVideos = localStorage.getItem(CACHE_KEY);
                         if (cachedVideos) {
                             const cachedData = JSON.parse(cachedVideos);
-                            const response = await fetch(`${RAW_BASE_URL}videos.json?v=${Date.now()}`);
+                            const response = await fetch(`${VIDEOS_JSON_URL}?v=${Date.now()}`);
                             if (response.ok) {
                                 const newData = await response.json();
                                 if (newData.version === cachedData.version) {
@@ -206,22 +220,24 @@
 
                 if (!shouldUseCache) {
                     try {
-                        const response = await fetch(`${RAW_BASE_URL}videos.json?v=${Date.now()}`);
+                        const response = await fetch(`${VIDEOS_JSON_URL}?v=${Date.now()}`);
                         if (!response.ok) throw new Error("Lỗi tải videos.json");
                         const data = await response.json();
-                        videoUrls = data.videos;
+                        videoUrls = data.videos
+                            .filter((v) => v.url && isValidVideoUrl(v.url))
+                            .map((v) => ({ ...v, url: v.url }));
                         localStorage.setItem(CACHE_KEY, JSON.stringify({ version: data.version, videos: videoUrls }));
                         localStorage.setItem(CACHE_EXPIRY_KEY, Date.now() + CACHE_DURATION);
                     } catch (e) {
                         console.error("Lỗi tải video:", e);
-                        container.innerHTML = '<p class="error-message">Không có video</p>';
+                        container.innerHTML = '<p class="error-message">Không thể tải danh sách video. Vui lòng thử lại sau.<br><button onclick="loadVideos()">Thử lại</button></p>';
                         isReloading = false;
                         return;
                     }
                 }
 
                 if (!videoUrls.length) {
-                    container.innerHTML = '<p class="error-message">Không có video</p>';
+                    container.innerHTML = '<p class="error-message">Không có video nào khả dụng.</p>';
                     isReloading = false;
                     return;
                 }
@@ -230,14 +246,16 @@
                     currentIndex = Math.floor(Math.random() * videoUrls.length);
                 }
 
-                // Chỉ tải video hiện tại
+                // Kiểm tra video hiện tại
                 const currentVideo = videoUrls[currentIndex];
                 try {
+                    const startTime = performance.now();
                     const res = await fetch(currentVideo.url, { method: "GET", mode: "cors", credentials: "omit" });
+                    console.log(`Video load time: ${performance.now() - startTime}ms`);
                     if (!res.ok) throw new Error(`Video không tải được: ${currentVideo.url}`);
                 } catch (e) {
                     console.warn(`Lỗi fetch video: ${currentVideo.url}`, e);
-                    container.innerHTML = '<p class="error-message">Lỗi tải video</p>';
+                    container.innerHTML = '<p class="error-message">Video không khả dụng. Vui lòng thử lại.<br><button onclick="loadVideos()">Thử lại</button></p>';
                     isReloading = false;
                     return;
                 }
@@ -251,7 +269,7 @@
                     slide.className = "video-slide";
                     slide.innerHTML = `
                         <div class="video-wrapper">
-                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}"></video>
+                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" autoplay muted></video>
                             <div class="progress-bar"><div class="progress"></div></div>
                             <div class="info"><p>${video.description || "Không có mô tả"}</p></div>
                         </div>
@@ -288,6 +306,7 @@
                 }
                 localStorage.removeItem(CACHE_KEY);
                 localStorage.removeItem(CACHE_EXPIRY_KEY);
+                localStorage.removeItem(FIRST_VISIT_KEY);
                 window.location.reload();
             }
 
@@ -301,6 +320,20 @@
                 if (observer) observer.disconnect();
                 const videos = document.querySelectorAll("video");
                 let hideControlsTimeout;
+
+                // Bật âm thanh sau tương tác người dùng
+                document.addEventListener(
+                    "click",
+                    () => {
+                        videos.forEach((video) => {
+                            if (video.muted) {
+                                video.muted = false;
+                                console.log("Đã bật âm thanh cho video:", video.src);
+                            }
+                        });
+                    },
+                    { once: true }
+                );
 
                 observer = new IntersectionObserver(
                     (entries) => {
@@ -333,7 +366,7 @@
                             }
                         });
                     },
-                    { threshold: 0.7, rootMargin: "50px" }
+                    { threshold: 0.9, rootMargin: "50px" }
                 );
 
                 videos.forEach((video) => {
@@ -440,8 +473,6 @@
                     );
                 });
             }
-
-            loadVideos();
         </script>
     </body>
 </html>
