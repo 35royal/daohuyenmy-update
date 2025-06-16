@@ -33,7 +33,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
     const requestUrl = new URL(event.request.url);
 
-    // Caching video (giữ logic gốc daohuyenmy)
+    // Cache video nếu yêu cầu
     if (requestUrl.pathname.match(/\.(mp4|webm|ogg)$/i)) {
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) => {
@@ -43,23 +43,24 @@ self.addEventListener("fetch", (event) => {
                         return cachedResponse;
                     }
 
-                    return fetch(event.request, { mode: "cors", credentials: "omit" }).then((networkResponse) => {
-                        if (networkResponse.ok) {
-                            console.log("Caching video:", requestUrl.pathname);
-                            cache.put(event.request, networkResponse.clone());
-                        }
-                        return networkResponse;
-                    }).catch((err) => {
-                        console.error("Video fetch failed:", err);
-                        return new Response("Video không khả dụng", { status: 503 });
-                    });
+                    return fetch(event.request, { mode: "cors", credentials: "omit" })
+                        .then((networkResponse) => {
+                            if (networkResponse.ok) {
+                                console.log("Caching video:", requestUrl.pathname);
+                                cache.put(event.request, networkResponse.clone());
+                            }
+                            return networkResponse;
+                        })
+                        .catch((err) => {
+                            console.error("Video fetch failed:", err);
+                            return caches.match(`${REPOSITORY_ROOT}offline.html`);
+                        });
                 });
             })
         );
         return;
     }
 
-    // Caching các tài nguyên khác
     event.respondWith(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.match(event.request).then((cachedResponse) => {
@@ -68,16 +69,18 @@ self.addEventListener("fetch", (event) => {
                     return cachedResponse;
                 }
 
-                return fetch(event.request, { mode: "cors", credentials: "omit" }).then((networkResponse) => {
-                    if (networkResponse.ok && requestUrl.pathname.match(/\.(ico|html|jpg|json)$/i)) {
-                        console.log("Caching:", requestUrl.pathname);
-                        cache.put(event.request, networkResponse.clone());
-                    }
-                    return networkResponse;
-                }).catch((err) => {
-                    console.error("Fetch failed:", err);
-                    return caches.match(`${REPOSITORY_ROOT}offline.html`);
-                });
+                return fetch(event.request, { mode: "cors", credentials: "omit" })
+                    .then((networkResponse) => {
+                        if (networkResponse.ok && requestUrl.pathname.match(/\.(ico|html|jpg|json)$/i)) {
+                            console.log("Caching:", requestUrl.pathname);
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    })
+                    .catch((err) => {
+                        console.error("Fetch failed:", err);
+                        return caches.match(`${REPOSITORY_ROOT}offline.html`);
+                    });
             });
         })
     );

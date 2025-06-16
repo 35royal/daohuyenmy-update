@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Đào Huyền My - Update</title>
+        <title>Đào Huyền My - update</title>
         <link rel="icon" type="image/x-icon" href="/daohuyenmy-update/favicon.ico" />
         <style>
             body {
@@ -15,8 +15,8 @@
                 display: flex;
                 flex-direction: column;
                 scroll-snap-type: y mandatory;
-                overflow-y: auto;
-                transition: none;
+                overflow-y: scroll;
+                transition: all 0.3s ease;
             }
             .video-slide {
                 height: 100vh;
@@ -111,18 +111,6 @@
                 border-radius: 5px;
                 font-size: 16px;
             }
-            .interaction-notice {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                color: white;
-                background: rgba(0, 0, 0, 0.7);
-                padding: 10px 20px;
-                border-radius: 5px;
-                font-size: 16px;
-                z-index: 10;
-            }
             @media (max-width: 600px) {
                 .video-wrapper {
                     max-width: 360px;
@@ -160,7 +148,7 @@
         <button class="refresh-btn" onclick="clearCacheAndReload()">🔄 Reload Video 🔄</button>
 
         <script>
-            // Định nghĩa đường dẫn tương đối
+            // Định nghĩa URL tương đối
             const REPOSITORY_ROOT = "/daohuyenmy-update/";
             const VIDEOS_JSON_URL = `${REPOSITORY_ROOT}videos.json`;
             const CACHE_NAME = "tiktok-clone-v1";
@@ -169,14 +157,13 @@
             let currentIndex = 0;
             let isReloading = false;
             let isFirstLoad = true;
-            let hasInteracted = false; // Theo dõi trạng thái tương tác
             let observer = null;
             const CACHE_KEY = "videoUrls";
             const CACHE_EXPIRY_KEY = "videoUrlsExpiry";
             const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
             const FIRST_VISIT_KEY = "firstVisit";
 
-            // Kiểm tra lần đầu truy cập
+            // Kiểm tra và reload lần đầu truy cập
             window.addEventListener("load", () => {
                 const isFirstVisit = localStorage.getItem(FIRST_VISIT_KEY);
                 if (!isFirstVisit) {
@@ -200,14 +187,6 @@
                 if (isReloading) return;
                 isReloading = true;
                 const container = document.getElementById("videoContainer");
-
-                // Kiểm tra kết nối mạng
-                if (!navigator.onLine) {
-                    container.innerHTML = '<p class="error-message">Không có kết nối mạng. Vui lòng kiểm tra và thử lại.</p>';
-                    isReloading = false;
-                    return;
-                }
-
                 let shouldUseCache = false;
 
                 if (!isReload && isCacheValid()) {
@@ -238,39 +217,28 @@
                         const data = await response.json();
                         videoUrls = data.videos
                             .filter((v) => v.url && isValidVideoUrl(v.url))
-                            .map((v) => ({ ...v, url: v.url }));
+                            .map((v) => ({
+                                ...v,
+                                url: v.url // Giữ URL nguyên bản từ videos.json
+                            }));
                         localStorage.setItem(CACHE_KEY, JSON.stringify({ version: data.version, videos: videoUrls }));
                         localStorage.setItem(CACHE_EXPIRY_KEY, Date.now() + CACHE_DURATION);
                     } catch (e) {
                         console.error("Lỗi tải video:", e);
-                        container.innerHTML = '<p class="error-message">Không thể tải danh sách video. Vui lòng thử lại sau.<br><button onclick="loadVideos()">Thử lại</button></p>';
+                        container.innerHTML = '<p class="error-message">Không có video</p>';
                         isReloading = false;
                         return;
                     }
                 }
 
                 if (!videoUrls.length) {
-                    container.innerHTML = '<p class="error-message">Không có video nào khả dụng.</p>';
+                    container.innerHTML = '<p class="error-message">Không có video</p>';
                     isReloading = false;
                     return;
                 }
 
                 if (!isReload) {
                     currentIndex = Math.floor(Math.random() * videoUrls.length);
-                }
-
-                // Kiểm tra video hiện tại
-                const currentVideo = videoUrls[currentIndex];
-                try {
-                    const startTime = performance.now();
-                    const res = await fetch(currentVideo.url, { method: "GET", mode: "cors", credentials: "omit" });
-                    console.log(`Video load time: ${performance.now() - startTime}ms`);
-                    if (!res.ok) throw new Error(`Video không tải được: ${currentVideo.url}`);
-                } catch (e) {
-                    console.warn(`Lỗi fetch video: ${currentVideo.url}`, e);
-                    container.innerHTML = '<p class="error-message">Video không khả dụng. Vui lòng thử lại.<br><button onclick="loadVideos()">Thử lại</button></p>';
-                    isReloading = false;
-                    return;
                 }
 
                 const orderedVideos = getOrderedVideos();
@@ -293,16 +261,13 @@
                             <button class="control-btn" onclick="scrollToNext()">⬇️</button>
                         </div>
                     `;
-                    if (index === 1 && !hasInteracted) {
-                        slide.innerHTML += '<div class="interaction-notice">Chạm để phát video</div>';
-                    }
                     container.appendChild(slide);
                 });
 
                 requestAnimationFrame(() => {
                     if (document.querySelectorAll(".video-slide").length === 3) {
                         setupVideos();
-                        container.style.overflowY = "auto";
+                        container.style.overflowY = "scroll";
                         container.scrollTop = window.innerHeight;
                     } else {
                         console.warn("Chưa render đủ slide, thử lại...");
@@ -337,26 +302,19 @@
                 const videos = document.querySelectorAll("video");
                 let hideControlsTimeout;
 
-                // Xử lý tương tác đầu tiên để phát video và bật âm thanh
-                const enablePlaybackAndAudio = () => {
-                    hasInteracted = true;
-                    const currentVideo = videos[1]; // Video hiện tại (index 1)
-                    if (currentVideo) {
-                        currentVideo.muted = false;
-                        currentVideo.play().catch((e) => console.warn("Lỗi phát video đầu tiên:", e));
-                        console.log("Đã bật âm thanh và phát video:", currentVideo.src);
-                        const notice = document.querySelector(".interaction-notice");
-                        if (notice) notice.remove();
-                    }
-                    document.removeEventListener("click", enablePlaybackAndAudio);
-                    document.removeEventListener("touchstart", enablePlaybackAndAudio);
-                };
-
-                // Gắn sự kiện click và touchstart
-                if (!hasInteracted) {
-                    document.addEventListener("click", enablePlaybackAndAudio);
-                    document.addEventListener("touchstart", enablePlaybackAndAudio);
-                }
+                // Bật âm thanh sau khi người dùng tương tác
+                document.addEventListener(
+                    "click",
+                    () => {
+                        videos.forEach((video) => {
+                            if (video.muted) {
+                                video.muted = false;
+                                console.log("Đã bật âm thanh cho video:", video.src);
+                            }
+                        });
+                    },
+                    { once: true }
+                );
 
                 observer = new IntersectionObserver(
                     (entries) => {
@@ -370,11 +328,9 @@
                                 } else if (index === 2) {
                                     currentIndex = (currentIndex + 1) % videoUrls.length;
                                     loadVideos(true);
-                                } else if (index === 1 && hasInteracted) {
+                                } else if (index === 1) {
                                     if (!isFirstLoad) {
-                                        video.muted = false;
-                                        video.play().catch((e) => console.warn("Lỗi phát video:", e));
-                                        console.log("Phát video với âm thanh:", video.src);
+                                        video.play().catch(() => console.warn("Lỗi phát video:", video.src));
                                     }
                                     clearTimeout(hideControlsTimeout);
                                     const controls = video.parentElement.querySelector(".controls");
@@ -391,7 +347,7 @@
                             }
                         });
                     },
-                    { threshold: 0.9, rootMargin: "50px" }
+                    { threshold: 0.7, rootMargin: "50px" }
                 );
 
                 videos.forEach((video) => {
@@ -428,7 +384,7 @@
 
                     video.addEventListener("error", () => {
                         console.warn("Lỗi video:", video.src);
-                        video.poster = "placeholder.jpg";
+                        video.poster = `${REPOSITORY_ROOT}placeholder.jpg`;
                     });
 
                     const wrapper = video.parentElement;
@@ -472,7 +428,7 @@
                 const video = btn.closest(".video-slide").querySelector("video");
                 video.muted = !video.muted;
                 btn.textContent = video.muted ? "🔇" : "🔊";
-                console.log("Muted trạng thái:", video.muted);
+                console.log("Muted:", video.muted);
             }
 
             function scrollToNext() {
@@ -499,6 +455,8 @@
                     );
                 });
             }
+
+            loadVideos();
         </script>
     </body>
 </html>
