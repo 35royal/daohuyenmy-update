@@ -3,8 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Đào Huyền My - update</title>
-        <link rel="icon" type="image/x-icon" href="/daohuyenmy-update/favicon.ico" />
+        <title>TikTok Clone by Tống Trần Kiên</title>
+        <link rel="icon" type="image/x-icon" href="/daohuyenmy/favicon.ico" />
         <style>
             body {
                 margin: 0;
@@ -148,7 +148,7 @@
         <button class="refresh-btn" onclick="clearCacheAndReload()">🔄 Reload Video 🔄</button>
 
         <script>
-            // Định nghĩa URL tương đối
+            // Định nghĩa BASE URL
             const REPOSITORY_ROOT = "/daohuyenmy-update/";
             const VIDEOS_JSON_URL = `${REPOSITORY_ROOT}videos.json`;
             const CACHE_NAME = "tiktok-clone-v1";
@@ -219,7 +219,7 @@
                             .filter((v) => v.url && isValidVideoUrl(v.url))
                             .map((v) => ({
                                 ...v,
-                                url: v.url // Giữ URL nguyên bản từ videos.json
+                                url: v.url // Sử dụng URL tuyệt đối trực tiếp từ videos.json
                             }));
                         localStorage.setItem(CACHE_KEY, JSON.stringify({ version: data.version, videos: videoUrls }));
                         localStorage.setItem(CACHE_EXPIRY_KEY, Date.now() + CACHE_DURATION);
@@ -250,7 +250,7 @@
                     slide.className = "video-slide";
                     slide.innerHTML = `
                         <div class="video-wrapper">
-                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" muted></video>
+                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" ${index === 1 ? "autoplay muted" : ""}></video>
                             <div class="progress-bar"><div class="progress"></div></div>
                             <div class="info"><p>${video.description || "Không có mô tả"}</p></div>
                         </div>
@@ -384,7 +384,7 @@
 
                     video.addEventListener("error", () => {
                         console.warn("Lỗi video:", video.src);
-                        video.poster = `${REPOSITORY_ROOT}placeholder.jpg`;
+                        video.poster = "placeholder.jpg";
                     });
 
                     const wrapper = video.parentElement;
@@ -428,7 +428,6 @@
                 const video = btn.closest(".video-slide").querySelector("video");
                 video.muted = !video.muted;
                 btn.textContent = video.muted ? "🔇" : "🔊";
-                console.log("Muted:", video.muted);
             }
 
             function scrollToNext() {
@@ -455,8 +454,6 @@
                     );
                 });
             }
-
-            loadVideos();
         </script>
     </body>
 </html>
