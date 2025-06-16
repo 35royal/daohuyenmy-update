@@ -3,8 +3,8 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Đào Huyền My - update</title>
-        <link rel="icon" type="image/x-icon" href="/daohuyenmy-update/favicon.ico" />
+        <title>TikTok Clone by Tống Trần Kiên</title>
+        <link rel="icon" type="image/x-icon" href="/daohuyenmy/favicon.ico" />
         <style>
             body {
                 margin: 0;
@@ -149,7 +149,7 @@
 
         <script>
             // Định nghĩa đường dẫn tương đối
-            const REPOSITORY_ROOT = "/daohuyenmy-update/";
+            const REPOSITORY_ROOT = "/daohuyenmy/";
             const VIDEOS_JSON_URL = `${REPOSITORY_ROOT}videos.json`;
             const CACHE_NAME = "tiktok-clone-v1";
 
@@ -322,18 +322,22 @@
                 let hideControlsTimeout;
 
                 // Bật âm thanh sau tương tác người dùng
-                document.addEventListener(
-                    "click",
-                    () => {
-                        videos.forEach((video) => {
-                            if (video.muted) {
-                                video.muted = false;
-                                console.log("Đã bật âm thanh cho video:", video.src);
+                const enableAudio = () => {
+                    videos.forEach((video) => {
+                        if (video.muted) {
+                            video.muted = false;
+                            console.log("Đã bật âm thanh cho video:", video.src);
+                            // Đảm bảo video đang phát
+                            if (video.paused) {
+                                video.play().catch((e) => console.warn("Lỗi phát video khi bật âm thanh:", e));
                             }
-                        });
-                    },
-                    { once: true }
-                );
+                        }
+                    });
+                };
+
+                // Gắn sự kiện click và touchstart
+                document.addEventListener("click", enableAudio, { once: true });
+                document.addEventListener("touchstart", enableAudio, { once: true });
 
                 observer = new IntersectionObserver(
                     (entries) => {
@@ -349,7 +353,7 @@
                                     loadVideos(true);
                                 } else if (index === 1) {
                                     if (!isFirstLoad) {
-                                        video.play().catch(() => console.warn("Lỗi phát video:", video.src));
+                                        video.play().catch((e) => console.warn("Lỗi phát video:", e));
                                     }
                                     clearTimeout(hideControlsTimeout);
                                     const controls = video.parentElement.querySelector(".controls");
@@ -447,6 +451,7 @@
                 const video = btn.closest(".video-slide").querySelector("video");
                 video.muted = !video.muted;
                 btn.textContent = video.muted ? "🔇" : "🔊";
+                console.log("Muted trạng thái:", video.muted);
             }
 
             function scrollToNext() {

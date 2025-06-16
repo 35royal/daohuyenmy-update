@@ -1,5 +1,5 @@
 const CACHE_NAME = "tiktok-clone-v1";
-const REPOSITORY_ROOT = "/daohuyenmy-update/";
+const REPOSITORY_ROOT = "/daohuyenmy/";
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
