@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>TikTok Clone by Tống Trần Kiên</title>
-        <link rel="icon" type="image/x-icon" href="/daohuyenmy/favicon.ico" />
+        <link rel="icon" type="image/x-icon" href="/daohuyenmy-update/favicon.ico" />
         <style>
             body {
                 margin: 0;
@@ -158,6 +158,7 @@
             let isReloading = false;
             let isFirstLoad = true;
             let observer = null;
+            let hasInteracted = false; // Biến theo dõi trạng thái tương tác
             const CACHE_KEY = "videoUrls";
             const CACHE_EXPIRY_KEY = "videoUrlsExpiry";
             const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
@@ -219,7 +220,7 @@
                             .filter((v) => v.url && isValidVideoUrl(v.url))
                             .map((v) => ({
                                 ...v,
-                                url: v.url // Sử dụng URL tuyệt đối trực tiếp từ videos.json
+                                url: v.url
                             }));
                         localStorage.setItem(CACHE_KEY, JSON.stringify({ version: data.version, videos: videoUrls }));
                         localStorage.setItem(CACHE_EXPIRY_KEY, Date.now() + CACHE_DURATION);
@@ -248,9 +249,10 @@
                 orderedVideos.forEach((video, index) => {
                     const slide = document.createElement("div");
                     slide.className = "video-slide";
+                    const mutedAttribute = index === 1 && !hasInteracted ? "muted" : "";
                     slide.innerHTML = `
                         <div class="video-wrapper">
-                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" ${index === 1 ? "autoplay muted" : ""}></video>
+                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" ${index === 1 ? "autoplay" : ""} ${mutedAttribute}></video>
                             <div class="progress-bar"><div class="progress"></div></div>
                             <div class="info"><p>${video.description || "Không có mô tả"}</p></div>
                         </div>
@@ -302,19 +304,21 @@
                 const videos = document.querySelectorAll("video");
                 let hideControlsTimeout;
 
-                // Bật âm thanh sau khi người dùng tương tác
-                document.addEventListener(
-                    "click",
-                    () => {
-                        videos.forEach((video) => {
-                            if (video.muted) {
-                                video.muted = false;
-                                console.log("Đã bật âm thanh cho video:", video.src);
-                            }
-                        });
-                    },
-                    { once: true }
-                );
+                if (!hasInteracted) {
+                    document.addEventListener(
+                        "click",
+                        () => {
+                            hasInteracted = true;
+                            videos.forEach((video) => {
+                                if (video.muted) {
+                                    video.muted = false;
+                                    console.log("Đã bật âm thanh cho video:", video.src);
+                                }
+                            });
+                        },
+                        { once: true }
+                    );
+                }
 
                 observer = new IntersectionObserver(
                     (entries) => {
@@ -331,6 +335,9 @@
                                 } else if (index === 1) {
                                     if (!isFirstLoad) {
                                         video.play().catch(() => console.warn("Lỗi phát video:", video.src));
+                                    }
+                                    if (hasInteracted && video.muted) {
+                                        video.muted = false;
                                     }
                                     clearTimeout(hideControlsTimeout);
                                     const controls = video.parentElement.querySelector(".controls");
