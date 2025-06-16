@@ -1,5 +1,5 @@
 const CACHE_NAME = "tiktok-clone-v1";
-const REPOSITORY_ROOT = "/daohuyenmy-update/";
+const REPOSITORY_ROOT = "/daohuyenmy-clone/";
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
@@ -32,27 +32,26 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
     const requestUrl = new URL(event.request.url);
-    const cacheKey = new Request(requestUrl.origin + requestUrl.pathname, {
-        method: event.request.method,
-        headers: event.request.headers,
-        mode: "cors",
-        cache: "default",
-        credentials: "omit"
-    });
+
+    // Bỏ qua caching cho video
+    if (requestUrl.pathname.match(/\.(mp4|webm|ogg)$/i)) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
 
     event.respondWith(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.match(cacheKey).then((cachedResponse) => {
+            return cache.match(event.request).then((cachedResponse) => {
                 if (cachedResponse) {
                     console.log("From cache:", requestUrl.pathname);
                     return cachedResponse;
                 }
 
-                return fetch(event.request, { mode: "cors", credentials: "omit" })
+                return fetch(event.request)
                     .then((networkResponse) => {
-                        if (networkResponse.ok && requestUrl.pathname.match(/\.(ico|html|jpg|json|mp4|webm|ogg)$/i)) {
+                        if (networkResponse.ok && requestUrl.pathname.match(/\.(ico|html|jpg|json)$/i)) {
                             console.log("Caching:", requestUrl.pathname);
-                            cache.put(cacheKey, networkResponse.clone());
+                            cache.put(event.request, networkResponse.clone());
                         }
                         return networkResponse;
                     })
