@@ -252,9 +252,10 @@
                     const slide = document.createElement("div");
                     slide.className = "video-slide";
                     const mutedAttribute = !hasInteracted ? "muted" : "";
+                    const autoplayAttribute = hasInteracted ? "autoplay" : "";
                     slide.innerHTML = `
                         <div class="video-wrapper">
-                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" ${mutedAttribute}></video>
+                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" ${autoplayAttribute} ${mutedAttribute}></video>
                             <div class="progress-bar"><div class="progress"></div></div>
                             <div class="info"><p>${video.description || "Không có mô tả"}</p></div>
                         </div>
@@ -292,7 +293,7 @@
                 localStorage.removeItem(CACHE_KEY);
                 localStorage.removeItem(CACHE_EXPIRY_KEY);
                 localStorage.removeItem(FIRST_VISIT_KEY);
-                localStorage.removeItem(INTERACTED_KEY);
+                // Không xóa INTERACTED_KEY để duy trì trạng thái tương tác
                 window.location.reload();
             }
 
@@ -315,6 +316,9 @@
                             if (video.muted) {
                                 video.muted = false;
                                 console.log("Đã bật âm thanh cho video:", video.src);
+                            }
+                            if (video.paused) {
+                                video.play().catch(() => console.warn("Lỗi phát video sau tương tác:", video.src));
                             }
                         });
                     };
