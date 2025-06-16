@@ -1,5 +1,5 @@
 const CACHE_NAME = "tiktok-clone-v1";
-const REPOSITORY_ROOT = "/daohuyenmy-clone/";
+const REPOSITORY_ROOT = "/daohuyenmy-update/";
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
@@ -32,57 +32,27 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
     const requestUrl = new URL(event.request.url);
+    const cacheKey = new Request(requestUrl.origin + requestUrl.pathname, {
+        method: event.request.method,
+        headers: event.request.headers,
+        mode: "cors",
+        cache: "default",
+        credentials: "omit"
+    });
 
-    // Xử lý tất cả các yêu cầu, đặc biệt là video
     event.respondWith(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
-                // Nếu tài nguyên có trong cache, trả về từ cache
+            return cache.match(cacheKey).then((cachedResponse) => {
                 if (cachedResponse) {
-                    console.log("Serving from cache:", requestUrl.pathname);
-                    // Kiểm tra nếu yêu cầu có tiêu đề Range
-                    const rangeHeader = event.request.headers.get("range");
-                    if (rangeHeader && cachedResponse.ok) {
-                        // Lấy toàn bộ nội dung từ cache
-                        return cachedResponse.blob().then((blob) => {
-                            const rangeMatch = rangeHeader.match(/^bytes=(\d+)-(\d*)$/);
-                            if (!rangeMatch) {
-                                return new Response(blob, {
-                                    status: 200,
-                                    headers: cachedResponse.headers
-                                });
-                            }
-
-                            const start = parseInt(rangeMatch[1], 10);
-                            const endMatch = rangeMatch[2];
-                            const end = endMatch ? parseInt(endMatch, 10) : blob.size - 1;
-                            const slicedBlob = blob.slice(start, end + 1);
-
-                            return new Response(slicedBlob, {
-                                status: 206,
-                                statusText: "Partial Content",
-                                headers: new Headers({
-                                    "Content-Range": `bytes ${start}-${end}/${blob.size}`,
-                                    "Content-Length": `${end - start + 1}`,
-                                    "Content-Type": cachedResponse.headers.get("Content-Type") || "video/mp4"
-                                })
-                            });
-                        });
-                    }
+                    console.log("From cache:", requestUrl.pathname);
                     return cachedResponse;
                 }
 
-                // Nếu không có trong cache, tải từ mạng và lưu vào cache
-                console.log("Fetching from network:", requestUrl.pathname);
-                return fetch(event.request)
+                return fetch(event.request, { mode: "cors", credentials: "omit" })
                     .then((networkResponse) => {
-                        // Chỉ cache các phản hồi hợp lệ và các file cần thiết
-                        if (
-                            networkResponse.ok &&
-                            requestUrl.pathname.match(/\.(ico|html|jpg|json|mp4|webm|ogg)$/i)
-                        ) {
+                        if (networkResponse.ok && requestUrl.pathname.match(/\.(ico|html|jpg|json|mp4|webm|ogg)$/i)) {
                             console.log("Caching:", requestUrl.pathname);
-                            cache.put(event.request, networkResponse.clone());
+                            cache.put(cacheKey, networkResponse.clone());
                         }
                         return networkResponse;
                     })
