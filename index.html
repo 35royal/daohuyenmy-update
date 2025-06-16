@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>TikTok Clone by Tống Trần Kiên</title>
-        <link rel="icon" type="image/x-icon" href="/daohuyenmy-update/favicon.ico" />
+        <link rel="icon" type="image/x-icon" href="/daohuyenmy-clone/favicon.ico" />
         <style>
             body {
                 margin: 0;
@@ -148,8 +148,8 @@
         <button class="refresh-btn" onclick="clearCacheAndReload()">🔄 Reload Video 🔄</button>
 
         <script>
-            // Định nghĩa BASE URL
-            const REPOSITORY_ROOT = "/daohuyenmy-update/";
+            // Định nghĩa đường dẫn
+            const REPOSITORY_ROOT = "/daohuyenmy-clone/";
             const VIDEOS_JSON_URL = `${REPOSITORY_ROOT}videos.json`;
             const CACHE_NAME = "tiktok-clone-v1";
 
@@ -158,15 +158,12 @@
             let isReloading = false;
             let isFirstLoad = true;
             let observer = null;
-            let hasInteracted = localStorage.getItem("hasInteracted") === "true";
-
             const CACHE_KEY = "videoUrls";
             const CACHE_EXPIRY_KEY = "videoUrlsExpiry";
-            const CACHE_DURATION = 30 * 60 * 1000;
+            const CACHE_DURATION = 30 * 60 * 1000; // 30 phút
             const FIRST_VISIT_KEY = "firstVisit";
-            const INTERACTED_KEY = "hasInteracted";
 
-            // Kiểm tra và reload lần đầu truy cập
+            // Kiểm tra lần truy cập đầu tiên
             window.addEventListener("load", () => {
                 const isFirstVisit = localStorage.getItem(FIRST_VISIT_KEY);
                 if (!isFirstVisit) {
@@ -220,10 +217,7 @@
                         const data = await response.json();
                         videoUrls = data.videos
                             .filter((v) => v.url && isValidVideoUrl(v.url))
-                            .map((v) => ({
-                                ...v,
-                                url: v.url
-                            }));
+                            .map((v) => ({ ...v, url: v.url }));
                         localStorage.setItem(CACHE_KEY, JSON.stringify({ version: data.version, videos: videoUrls }));
                         localStorage.setItem(CACHE_EXPIRY_KEY, Date.now() + CACHE_DURATION);
                     } catch (e) {
@@ -244,6 +238,18 @@
                     currentIndex = Math.floor(Math.random() * videoUrls.length);
                 }
 
+                // Kiểm tra video hiện tại
+                const currentVideo = videoUrls[currentIndex];
+                try {
+                    const res = await fetch(currentVideo.url, { method: "GET", mode: "cors", credentials: "omit" });
+                    if (!res.ok) throw new Error(`Video không tải được: ${currentVideo.url}`);
+                } catch (e) {
+                    console.warn(`Lỗi fetch video: ${currentVideo.url}`, e);
+                    container.innerHTML = '<p class="error-message">Lỗi tải video</p>';
+                    isReloading = false;
+                    return;
+                }
+
                 const orderedVideos = getOrderedVideos();
                 container.innerHTML = "";
                 container.style.overflowY = "hidden";
@@ -251,11 +257,9 @@
                 orderedVideos.forEach((video, index) => {
                     const slide = document.createElement("div");
                     slide.className = "video-slide";
-                    const mutedAttribute = !hasInteracted ? "muted" : "";
-                    const autoplayAttribute = hasInteracted ? "autoplay" : "";
                     slide.innerHTML = `
                         <div class="video-wrapper">
-                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" ${autoplayAttribute} ${mutedAttribute}></video>
+                            <video src="${video.url}" playsinline preload="${index === 1 ? "auto" : "none"}" autoplay></video>
                             <div class="progress-bar"><div class="progress"></div></div>
                             <div class="info"><p>${video.description || "Không có mô tả"}</p></div>
                         </div>
@@ -293,7 +297,6 @@
                 localStorage.removeItem(CACHE_KEY);
                 localStorage.removeItem(CACHE_EXPIRY_KEY);
                 localStorage.removeItem(FIRST_VISIT_KEY);
-                // Không xóa INTERACTED_KEY để duy trì trạng thái tương tác
                 window.location.reload();
             }
 
@@ -308,23 +311,19 @@
                 const videos = document.querySelectorAll("video");
                 let hideControlsTimeout;
 
-                if (!hasInteracted) {
-                    const enableAudio = () => {
-                        hasInteracted = true;
-                        localStorage.setItem(INTERACTED_KEY, "true");
+                // Bật âm thanh sau tương tác người dùng
+                document.addEventListener(
+                    "click",
+                    () => {
                         videos.forEach((video) => {
                             if (video.muted) {
                                 video.muted = false;
                                 console.log("Đã bật âm thanh cho video:", video.src);
                             }
-                            if (video.paused) {
-                                video.play().catch(() => console.warn("Lỗi phát video sau tương tác:", video.src));
-                            }
                         });
-                    };
-                    document.addEventListener("click", enableAudio, { once: true });
-                    document.addEventListener("touchstart", enableAudio, { once: true });
-                }
+                    },
+                    { once: true }
+                );
 
                 observer = new IntersectionObserver(
                     (entries) => {
@@ -338,10 +337,9 @@
                                 } else if (index === 2) {
                                     currentIndex = (currentIndex + 1) % videoUrls.length;
                                     loadVideos(true);
-                                } else if (index === 1 && hasInteracted) {
-                                    video.play().catch(() => console.warn("Lỗi phát video:", video.src));
-                                    if (hasInteracted && video.muted) {
-                                        video.muted = false;
+                                } else if (index === 1) {
+                                    if (!isFirstLoad) {
+                                        video.play().catch(() => console.warn("Lỗi phát video:", video.src));
                                     }
                                     clearTimeout(hideControlsTimeout);
                                     const controls = video.parentElement.querySelector(".controls");

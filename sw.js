@@ -1,5 +1,5 @@
 const CACHE_NAME = "tiktok-clone-v1";
-const REPOSITORY_ROOT = "/daohuyenmy/";
+const REPOSITORY_ROOT = "/daohuyenmy-update/";
 
 self.addEventListener("install", (event) => {
     event.waitUntil(
@@ -20,43 +20,46 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
     const cacheWhitelist = [CACHE_NAME];
     event.waitUntil(
-        caches.keys().then(cacheNames => 
-            Promise.all(cacheNames.map(cacheName => 
-                !cacheWhitelist.includes(cacheName) && caches.delete(cacheName)
-            ))
+        caches.keys().then((cacheNames) =>
+            Promise.all(
+                cacheNames.map((cacheName) =>
+                    !cacheWhitelist.includes(cacheName) && caches.delete(cacheName)
+                )
+            )
         ).then(() => self.clients.claim())
     );
 });
 
 self.addEventListener("fetch", (event) => {
     const requestUrl = new URL(event.request.url);
-    const cacheKey = new Request(requestUrl.origin + requestUrl.pathname, {
-        method: event.request.method,
-        headers: event.request.headers,
-        mode: 'cors',
-        cache: 'default',
-        credentials: 'omit'
-    });
 
     event.respondWith(
-        caches.open(CACHE_NAME).then(cache => {
-            return cache.match(cacheKey).then(cachedResponse => {
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.match(event.request).then((cachedResponse) => {
+                // Nếu tài nguyên đã có trong cache, trả về từ cache
                 if (cachedResponse) {
-                    console.log("From cache:", event.request.url);
+                    console.log("From cache:", requestUrl.pathname);
                     return cachedResponse;
                 }
 
-                return fetch(event.request, { mode: 'cors', credentials: 'omit' }).then(networkResponse => {
-                    if (networkResponse.ok && (event.request.url.includes(REPOSITORY_ROOT))) {
-                        console.log("Caching:", event.request.url);
-                        const clonedResponse = networkResponse.clone();
-                        cache.put(cacheKey, clonedResponse);
-                    }
-                    return networkResponse;
-                }).catch(err => {
-                    console.error("Fetch failed:", err);
-                    return caches.match(`${REPOSITORY_ROOT}offline.html`);
-                });
+                // Nếu không có trong cache, tải từ mạng
+                return fetch(event.request)
+                    .then((networkResponse) => {
+                        // Chỉ cache các phản hồi hợp lệ và các file cần thiết
+                        if (
+                            networkResponse.ok &&
+                            requestUrl.pathname.match(/\.(ico|html|jpg|json|mp4|webm|ogg)$/i)
+                        ) {
+                            console.log("Caching:", requestUrl.pathname);
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    })
+                    .catch((err) => {
+                        console.error("Fetch failed:", err);
+                        // Trả về trang offline nếu không tải được
+                        return caches.match(`${REPOSITORY_ROOT}offline.html`);
+                    });
             });
         })
     );
